@@ -1,0 +1,14 @@
+PLACEHOLDER FOR DEMO VIDEO
+
+To test the full demo mode with video download:
+
+1. Add a video file named "character.mp4" to this /public folder
+2. This can be any MP4 video file for demonstration purposes
+3. When you upload an image in DEMO MODE, the app will show a "Download Video" button
+4. Clicking it will download the character.mp4 file
+
+If you don't have a video file, you can:
+- Use any sample MP4 video and rename it to "character.mp4"
+- Or leave it as-is and the app will still show the processing UI
+
+The download button will only appear if character.mp4 exists in the /public folder.
