@@ -2,6 +2,11 @@
 
 import { useState, useRef, ChangeEvent, FormEvent } from "react";
 import Image from "next/image";
+import {
+  CHARACTER_PROMPTS,
+  CHARACTER_STYLES,
+  CharacterStyle,
+} from "../config/prompts";
 
 interface UploadResponse {
   success: boolean;
@@ -21,15 +26,6 @@ interface UploadResponse {
 interface ImageUploadProps {
   onUploadSuccess?: (data: UploadResponse) => void;
 }
-
-type CharacterStyle = "normal" | "chibi";
-
-const CHARACTER_PROMPTS = {
-  normal:
-    'Generate a realistic animated character video based on this person, waving "Hi" with natural movements and friendly expression',
-  chibi:
-    'Generate a cute chibi-style animated character video based on this person, with large head proportions, small body, waving "Hi" in an adorable kawaii style with exaggerated cheerful expressions',
-};
 
 export default function ImageUpload({ onUploadSuccess }: ImageUploadProps) {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -331,79 +327,45 @@ export default function ImageUpload({ onUploadSuccess }: ImageUploadProps) {
             Choose Character Style
           </label>
           <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => setCharacterStyle("normal")}
-              className={`relative p-4 rounded-lg border-2 transition-all ${
-                characterStyle === "normal"
-                  ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20"
-                  : "border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600"
-              }`}
-            >
-              <div className="text-center space-y-2">
-                <div className="text-3xl">🧑</div>
-                <div>
-                  <div className="font-semibold text-gray-900 dark:text-white">
-                    Normal Character
-                  </div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                    Realistic style with natural movements
-                  </div>
-                </div>
-              </div>
-              {characterStyle === "normal" && (
-                <div className="absolute top-2 right-2">
-                  <svg
-                    className="h-5 w-5 text-blue-600 dark:text-blue-400"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setCharacterStyle("chibi")}
-              className={`relative p-4 rounded-lg border-2 transition-all ${
-                characterStyle === "chibi"
-                  ? "border-pink-600 bg-pink-50 dark:bg-pink-900/20"
-                  : "border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600"
-              }`}
-            >
-              <div className="text-center space-y-2">
-                <div className="text-3xl">🎀</div>
-                <div>
-                  <div className="font-semibold text-gray-900 dark:text-white">
-                    Chibi Character
-                  </div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                    Cute kawaii style with big head
+            {CHARACTER_STYLES.map((style) => (
+              <button
+                key={style.id}
+                type="button"
+                onClick={() => setCharacterStyle(style.id)}
+                className={`relative p-4 rounded-lg border-2 transition-all ${
+                  characterStyle === style.id
+                    ? `border-${style.color}-600 bg-${style.color}-50 dark:bg-${style.color}-900/20`
+                    : "border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600"
+                }`}
+              >
+                <div className="text-center space-y-2">
+                  <div className="text-3xl">{style.emoji}</div>
+                  <div>
+                    <div className="font-semibold text-gray-900 dark:text-white">
+                      {style.name}
+                    </div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                      {style.description}
+                    </div>
                   </div>
                 </div>
-              </div>
-              {characterStyle === "chibi" && (
-                <div className="absolute top-2 right-2">
-                  <svg
-                    className="h-5 w-5 text-pink-600 dark:text-pink-400"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
-              )}
-            </button>
+                {characterStyle === style.id && (
+                  <div className="absolute top-2 right-2">
+                    <svg
+                      className={`h-5 w-5 text-${style.color}-600 dark:text-${style.color}-400`}
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </div>
+                )}
+              </button>
+            ))}
           </div>
         </div>
 
