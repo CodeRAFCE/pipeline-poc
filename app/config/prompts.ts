@@ -19,7 +19,7 @@ export const CHARACTER_STYLES = [
     id: "chibi" as CharacterStyle,
     name: "Chibi Character",
     emoji: "🎀",
-    description: "Cute style with big head",
+    description: "Cute super deformation style with big head",
     color: "pink",
   },
 ] as const;
