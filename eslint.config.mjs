@@ -13,6 +13,12 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      // Disable BEM class name checking for Tailwind CSS compatibility
+      "@next/next/no-tailwindcss-class-name": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;
