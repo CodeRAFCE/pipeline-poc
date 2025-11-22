@@ -1,10 +1,21 @@
 export type CharacterStyle = "normal" | "chibi";
 
-export const CHARACTER_PROMPTS: Record<CharacterStyle, string> = {
-  normal:
-    'Generate a realistic animated character video based on this person, waving "Hi" with natural movements and friendly expression',
-  chibi:
-    'Generate a cute chibi-style animated character video based on this person, with large head proportions, small body, waving "Hi" in an adorable kawaii style with exaggerated cheerful expressions',
+/**
+ * Character descriptions for PRISM AI character generation
+ * These are used in the generate_ai_character API call
+ */
+export const CHARACTER_DESCRIPTIONS: Record<CharacterStyle, string> = {
+  normal: "2d cartoon avatar with realistic proportions",
+  chibi: "2d chibi avatar with realistic proportions",
+};
+
+/**
+ * Animation prompts for PRISM AI video generation
+ * These are used in the generate_ai_video API call
+ */
+export const ANIMATION_PROMPTS: Record<CharacterStyle, string> = {
+  normal: "The person waves at the camera with a friendly smile",
+  chibi: "The person waves at the camera in a cute and energetic way",
 };
 
 export const CHARACTER_STYLES = [

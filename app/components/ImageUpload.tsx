@@ -3,7 +3,8 @@
 import { useState, useRef, ChangeEvent, FormEvent } from "react";
 import Image from "next/image";
 import {
-  CHARACTER_PROMPTS,
+  CHARACTER_DESCRIPTIONS,
+  ANIMATION_PROMPTS,
   CHARACTER_STYLES,
   CharacterStyle,
 } from "../config/prompts";
@@ -12,9 +13,13 @@ interface UploadResponse {
   success: boolean;
   message: string;
   data?: {
-    jobId?: string;
+    characterUrl?: string;
     videoUrl?: string;
-    status?: string;
+    characterGenerationTime?: number;
+    videoGenerationTime?: number;
+    totalGenerationTime?: number;
+    creditsUsed?: number;
+    creditsRemaining?: number;
   };
   uploadedFile?: {
     name: string;
@@ -92,71 +97,122 @@ export default function ImageUpload({ onUploadSuccess }: ImageUploadProps) {
     setIsUploading(true);
     setUploadStatus({ type: "", message: "" });
 
-    // Check if backend URL is configured
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-    const useMockMode = !backendUrl;
+    const PRISM_API_URL =
+      process.env.NEXT_PUBLIC_PRISM_API_URL ||
+      "https://prismai.ap-southeast-1.elasticbeanstalk.com";
+    const PRISM_API_KEY = process.env.NEXT_PUBLIC_PRISM_API_KEY || "";
 
-    try {
-      if (useMockMode) {
-        // Mock/Demo mode - simulate backend response
-        await new Promise((resolve) => setTimeout(resolve, 2000)); // Simulate network delay
-
-        const mockData: UploadResponse = {
-          success: true,
-          message: "Image uploaded successfully (DEMO MODE)",
-          data: {
-            jobId: `demo-${Date.now()}`,
-            status: "completed",
-            videoUrl: "/character.mp4",
-          },
-          uploadedFile: {
-            name: selectedImage.name,
-            size: selectedImage.size,
-            type: selectedImage.type,
-          },
-        };
-
-        setUploadStatus({
-          type: "success",
-          message: "Image uploaded successfully! Processing started.",
-        });
-        setUploadedData(mockData);
-        if (onUploadSuccess) {
-          onUploadSuccess(mockData);
-        }
-      } else {
-        // Real backend mode
-        const formData = new FormData();
-        formData.append("image", selectedImage);
-        formData.append("prompt", CHARACTER_PROMPTS[characterStyle]);
-
-        const response = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-          setUploadStatus({
-            type: "success",
-            message: "Image uploaded successfully! Processing started.",
-          });
-          setUploadedData(data);
-          if (onUploadSuccess) {
-            onUploadSuccess(data);
-          }
-        } else {
-          setUploadStatus({
-            type: "error",
-            message: data.error || "Upload failed. Please try again.",
-          });
-        }
-      }
-    } catch {
+    if (!PRISM_API_KEY) {
       setUploadStatus({
         type: "error",
-        message: "Network error. Please check your connection and try again.",
+        message:
+          "API key not configured. Please set NEXT_PUBLIC_PRISM_API_KEY in .env.local",
+      });
+      setIsUploading(false);
+      return;
+    }
+
+    try {
+      // Step 1: Generate AI Character
+      console.log("🎨 Step 1: Generating AI character...");
+      const characterFormData = new FormData();
+      characterFormData.append("image", selectedImage);
+      characterFormData.append(
+        "character_description",
+        CHARACTER_DESCRIPTIONS[characterStyle]
+      );
+
+      const characterResponse = await fetch(
+        `${PRISM_API_URL}/api/v1/generate_ai_character`,
+        {
+          method: "POST",
+          headers: {
+            "x-api-key": PRISM_API_KEY,
+          },
+          body: characterFormData,
+        }
+      );
+
+      if (!characterResponse.ok) {
+        const errorText = await characterResponse.text();
+        throw new Error(`Character generation failed: ${errorText}`);
+      }
+
+      const characterData = await characterResponse.json();
+      console.log(
+        `✅ Character generated in ${characterData.generation_time}s`
+      );
+      console.log(`💰 Credits used: ${characterData.credits_used}`);
+
+      // Step 2: Generate AI Video
+      console.log("🎬 Step 2: Generating AI video...");
+      const videoFormData = new FormData();
+      videoFormData.append("character", characterData.output); // Send URL as string
+      videoFormData.append("prompt", ANIMATION_PROMPTS[characterStyle]);
+      videoFormData.append("loop", "True"); // Create a looping video
+
+      const videoResponse = await fetch(
+        `${PRISM_API_URL}/api/v1/generate_ai_video`,
+        {
+          method: "POST",
+          headers: {
+            "x-api-key": PRISM_API_KEY,
+          },
+          body: videoFormData,
+        }
+      );
+
+      if (!videoResponse.ok) {
+        const errorText = await videoResponse.text();
+        throw new Error(`Video generation failed: ${errorText}`);
+      }
+
+      const videoData = await videoResponse.json();
+      console.log(`✅ Video generated in ${videoData.generation_time}s`);
+      console.log(`💰 Credits used: ${videoData.credits_used}`);
+
+      // Calculate totals
+      const totalGenerationTime =
+        characterData.generation_time + videoData.generation_time;
+      const totalCreditsUsed =
+        characterData.credits_used + videoData.credits_used;
+
+      // Format response to match existing interface
+      const responseData: UploadResponse = {
+        success: true,
+        message: "Character and video generated successfully!",
+        data: {
+          characterUrl: characterData.output,
+          videoUrl: videoData.output,
+          characterGenerationTime: characterData.generation_time,
+          videoGenerationTime: videoData.generation_time,
+          totalGenerationTime,
+          creditsUsed: totalCreditsUsed,
+          creditsRemaining: videoData.credits_remaining,
+        },
+        uploadedFile: {
+          name: selectedImage.name,
+          size: selectedImage.size,
+          type: selectedImage.type,
+        },
+      };
+
+      setUploadStatus({
+        type: "success",
+        message: "Character and video generated successfully!",
+      });
+      setUploadedData(responseData);
+      if (onUploadSuccess) {
+        onUploadSuccess(responseData);
+      }
+    } catch (error) {
+      console.error("Generation error:", error);
+      setUploadStatus({
+        type: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Generation failed. Please try again.",
       });
     } finally {
       setIsUploading(false);
@@ -211,7 +267,7 @@ export default function ImageUpload({ onUploadSuccess }: ImageUploadProps) {
           {uploadedData.uploadedFile && (
             <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 space-y-2">
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Upload Details
+                Generation Details
               </h3>
               <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
                 <p>
@@ -227,21 +283,66 @@ export default function ImageUpload({ onUploadSuccess }: ImageUploadProps) {
                   <span className="font-medium">Size:</span>{" "}
                   {(uploadedData.uploadedFile.size / 1024).toFixed(2)} KB
                 </p>
-                {uploadedData.data?.jobId && (
+                {uploadedData.data?.characterGenerationTime && (
                   <p>
-                    <span className="font-medium">Job ID:</span>{" "}
-                    {uploadedData.data.jobId}
+                    <span className="font-medium">Character Generation:</span>{" "}
+                    {uploadedData.data.characterGenerationTime.toFixed(2)}s
                   </p>
                 )}
-                {uploadedData.data?.status && (
+                {uploadedData.data?.videoGenerationTime && (
                   <p>
-                    <span className="font-medium">Status:</span>{" "}
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
-                      {uploadedData.data.status}
+                    <span className="font-medium">Video Generation:</span>{" "}
+                    {uploadedData.data.videoGenerationTime.toFixed(2)}s
+                  </p>
+                )}
+                {uploadedData.data?.totalGenerationTime && (
+                  <p>
+                    <span className="font-medium">Total Time:</span>{" "}
+                    {uploadedData.data.totalGenerationTime.toFixed(2)}s
+                  </p>
+                )}
+                {uploadedData.data?.creditsUsed !== undefined && (
+                  <p>
+                    <span className="font-medium">Credits Used:</span>{" "}
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300">
+                      {uploadedData.data.creditsUsed}
+                    </span>
+                  </p>
+                )}
+                {uploadedData.data?.creditsRemaining !== undefined && (
+                  <p>
+                    <span className="font-medium">Credits Remaining:</span>{" "}
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300">
+                      {uploadedData.data.creditsRemaining}
                     </span>
                   </p>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Character Preview */}
+          {uploadedData.data?.characterUrl && (
+            <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 space-y-2">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                Generated Character
+              </h3>
+              <div className="relative w-full max-w-sm mx-auto aspect-square">
+                <Image
+                  src={uploadedData.data.characterUrl}
+                  alt="Generated Character"
+                  fill
+                  className="object-contain rounded-lg"
+                />
+              </div>
+              <a
+                href={uploadedData.data.characterUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-center text-sm text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                View Full Size
+              </a>
             </div>
           )}
 
@@ -256,43 +357,6 @@ export default function ImageUpload({ onUploadSuccess }: ImageUploadProps) {
             </a>
           )}
 
-          {/* Processing Message (if no video URL yet) */}
-          {!uploadedData.data?.videoUrl && (
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-              <div className="flex items-center gap-3">
-                <svg
-                  className="animate-spin h-5 w-5 text-blue-600 dark:text-blue-400"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                    Video is being processed
-                  </p>
-                  <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                    This may take a few minutes. Check back soon or refresh the
-                    page.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Action Buttons */}
           <div className="flex gap-3">
             <button
@@ -301,17 +365,6 @@ export default function ImageUpload({ onUploadSuccess }: ImageUploadProps) {
             >
               Upload Another Image
             </button>
-            {uploadedData.data?.jobId && (
-              <button
-                onClick={() => {
-                  // TODO: Implement status check
-                  alert("Status check feature - coming soon!");
-                }}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors"
-              >
-                Check Status
-              </button>
-            )}
           </div>
         </div>
       </div>

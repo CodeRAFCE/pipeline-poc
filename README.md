@@ -1,101 +1,67 @@
 # AI Animated Character Generator - PRISM POC
 
-This Next.js application allows users to upload a person's image to generate an animated character video waving "Hi" using an AI pipeline.
+This Next.js application allows users to upload a person's image to generate an animated character video waving "Hi" using PRISM AI APIs.
 
 ## Features
 
 - 📸 Image upload with drag-and-drop support
 - 🖼️ Real-time image preview
+- 🎨 Multiple character styles (Normal & Chibi)
+- 🎬 AI-powered character and video generation via PRISM AI
 - ✨ Modern, responsive UI with dark mode support
-- 🚀 API integration for backend processing
-- 🎭 Demo mode for testing without a backend
+- 📊 Generation statistics and credits tracking
 - ⚡ Built with Next.js 16 and React 19
 
-## Getting Started
+## Quick Start
 
-### Prerequisites
-
-- Node.js 18+ installed
-- (Optional) Backend API endpoint for production mode
-
-### Installation
-
-1. Install dependencies:
+### 1. Install Dependencies
 
 ```bash
 npm install
 ```
 
-### Running the Development Server
+### 2. Configure Environment Variables
+
+Create a `.env.local` file in the project root:
+
+```env
+# PRISM AI API Configuration
+NEXT_PUBLIC_PRISM_API_URL=https://prismai.ap-southeast-1.elasticbeanstalk.com
+PRISM_API_KEY=CD3V2pSBQtT2BohCEzWKVwC0JtSKD7rV0dUrj3rHThc
+```
+
+**Important:** Replace the API key with your actual PRISM AI API key.
+
+### 3. Run Development Server
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to use the application.
 
-## Operating Modes
+## PRISM AI Integration
 
-### 🎭 Demo Mode (Default)
+This application integrates with PRISM AI's character and video generation APIs:
 
-The app runs in **demo mode** by default when no backend URL is configured:
+1. **Character Generation** - Converts uploaded images to 2D cartoon/chibi avatars
+2. **Video Generation** - Animates the characters with custom prompts
 
-- Upload any image to test the UI
-- Simulates a 2-second upload delay
-- Shows mock upload success and processing status
-- Displays a "Download Video" button if `character.mp4` exists in `/public` folder
+For detailed integration documentation, see [PRISM_INTEGRATION.md](./PRISM_INTEGRATION.md)
 
-**To test with video download:**
+## Character Styles
 
-1. Place any MP4 video file in the `/public` folder
-2. Rename it to `character.mp4`
-3. Upload an image - you'll see a download button after upload
+### Normal Character 🧑
 
-### 🚀 Production Mode
+- Realistic 2D cartoon style with natural proportions
+- Friendly waving animation
+- ~5 credits for character + ~70 credits for video
 
-To connect to a real backend:
+### Chibi Character 🎀
 
-1. Create `.env.local` file:
-
-```bash
-cp .env.local.example .env.local
-```
-
-2. Update `.env.local` with your backend endpoint:
-
-```env
-NEXT_PUBLIC_BACKEND_URL=http://your-backend-url/api/generate-video
-```
-
-3. Restart the dev server
-
-## API Integration
-
-### Backend Endpoint Expected Format
-
-The frontend sends a POST request to your backend with the following JSON payload:
-
-```json
-{
-  "image": "base64_encoded_image_string",
-  "imageType": "image/jpeg",
-  "imageName": "photo.jpg",
-  "prompt": "Generate an animated character video waving \"Hi\" based on this person",
-  "timestamp": "2025-11-17T12:00:00.000Z"
-}
-```
-
-### Expected Backend Response
-
-Success response (200):
-
-```json
-{
-  "jobId": "unique-job-id",
-  "status": "processing",
-  "message": "Video generation started"
-}
-```
+- Cute super deformation style with big head
+- Energetic waving animation
+- ~5 credits for character + ~70 credits for video
 
 ## Project Structure
 
@@ -103,13 +69,30 @@ Success response (200):
 app/
 ├── api/
 │   └── upload/
-│       └── route.ts          # API route for handling uploads
+│       └── route.ts          # API route handling PRISM AI integration
 ├── components/
-│   └── ImageUpload.tsx       # Main upload component
+│   └── ImageUpload.tsx       # Main upload component with results display
+├── config/
+│   └── prompts.ts            # Character styles and animation prompts
+├── services/
+│   └── prismApi.ts           # PRISM AI service functions
 ├── page.tsx                  # Home page
 ├── layout.tsx                # Root layout
 └── globals.css               # Global styles
 ```
+
+## How It Works
+
+1. User uploads an image and selects a character style
+2. Frontend sends request to `/api/upload` with image and style preferences
+3. Backend processes in two steps:
+   - Generates AI character using PRISM AI
+   - Generates animated video from the character
+4. Results displayed with:
+   - Generated character preview
+   - Downloadable video
+   - Generation statistics
+   - Credits usage information
 
 ## Configuration
 
@@ -118,13 +101,35 @@ app/
 - Maximum file size: 10MB
 - Supported formats: All image types (PNG, JPG, GIF, etc.)
 
-### Modifying the Prompt
+### Customizing Character Styles
 
-Edit the prompt in `app/components/ImageUpload.tsx`:
+Edit `app/config/prompts.ts` to add or modify character styles and animation prompts.
+
+## API Response Structure
+
+The application returns:
 
 ```typescript
-formData.append("prompt", "Your custom prompt here");
+{
+  success: boolean;
+  message: string;
+  data: {
+    characterUrl: string; // Generated character image
+    videoUrl: string; // Generated video
+    characterGenerationTime: number; // Seconds
+    videoGenerationTime: number; // Seconds
+    totalGenerationTime: number; // Total seconds
+    creditsUsed: number; // Credits consumed
+    creditsRemaining: number; // Credits remaining
+  }
+}
 ```
+
+## Performance
+
+- Character generation: ~10 seconds
+- Video generation: ~120-130 seconds
+- Total processing time: ~2-3 minutes
 
 ## Build for Production
 
@@ -135,6 +140,28 @@ npm start
 
 ## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme).
+The easiest way to deploy is using the [Vercel Platform](https://vercel.com/new).
 
-Check out the [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**Important:** Remember to set environment variables in Vercel:
+
+- `NEXT_PUBLIC_PRISM_API_URL`
+- `PRISM_API_KEY`
+
+## Documentation
+
+- [PRISM Integration Guide](./PRISM_INTEGRATION.md) - Detailed API integration documentation
+- [Next.js Documentation](https://nextjs.org/docs)
+
+## Troubleshooting
+
+See [PRISM_INTEGRATION.md](./PRISM_INTEGRATION.md#troubleshooting) for common issues and solutions.
+
+## Credits System
+
+Each generation consumes credits from your PRISM AI account:
+
+- Character generation: ~5 credits
+- Video generation: ~70 credits
+- **Total per request: ~75 credits**
+
+Monitor your credits in the application after each generation.
