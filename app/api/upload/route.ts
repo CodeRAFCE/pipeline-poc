@@ -95,6 +95,7 @@ export async function POST(request: NextRequest) {
     const videoFormData = new FormData();
     videoFormData.append('character', characterData.output); // Send URL as string
     videoFormData.append('prompt', animationPrompt || 'The person waves at the camera');
+    videoFormData.append('loop', 'True'); // Create a looping video
 
     const videoResponse = await fetch(`${PRISM_API_URL}/api/v1/generate_ai_video`, {
       method: 'POST',

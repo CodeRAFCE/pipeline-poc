@@ -8,20 +8,6 @@ The PRISM AI integration is now complete, but you need to create the environment
 
 Create a new file named `.env.local` in the project root directory:
 
-**Location:** `c:\Users\Admin\Desktop\PRISM_POC\pipeline-poc\.env.local`
-
-**Contents:**
-
-```env
-# PRISM AI API Configuration
-NEXT_PUBLIC_PRISM_API_URL=https://prismai.ap-southeast-1.elasticbeanstalk.com
-NEXT_PUBLIC_PRISM_API_KEY=CD3V2pSBQtT2BohCEzWKVwC0JtSKD7rV0dUrj3rHThc
-```
-
-**Note:** The `NEXT_PUBLIC_` prefix is required because the frontend now calls the PRISM API directly.
-
-### Step 2: Restart the Development Server
-
 After creating the `.env.local` file, restart your development server:
 
 1. Stop the current server (Ctrl+C in the terminal)

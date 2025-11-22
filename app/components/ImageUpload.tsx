@@ -97,113 +97,33 @@ export default function ImageUpload({ onUploadSuccess }: ImageUploadProps) {
     setIsUploading(true);
     setUploadStatus({ type: "", message: "" });
 
-    const PRISM_API_URL =
-      process.env.NEXT_PUBLIC_PRISM_API_URL ||
-      "https://prismai.ap-southeast-1.elasticbeanstalk.com";
-    const PRISM_API_KEY = process.env.NEXT_PUBLIC_PRISM_API_KEY || "";
-
-    if (!PRISM_API_KEY) {
-      setUploadStatus({
-        type: "error",
-        message:
-          "API key not configured. Please set NEXT_PUBLIC_PRISM_API_KEY in .env.local",
-      });
-      setIsUploading(false);
-      return;
-    }
-
     try {
-      // Step 1: Generate AI Character
-      console.log("🎨 Step 1: Generating AI character...");
-      const characterFormData = new FormData();
-      characterFormData.append("image", selectedImage);
-      characterFormData.append(
-        "character_description",
+      const formData = new FormData();
+      formData.append("image", selectedImage);
+      formData.append(
+        "characterDescription",
         CHARACTER_DESCRIPTIONS[characterStyle]
       );
+      formData.append("animationPrompt", ANIMATION_PROMPTS[characterStyle]);
 
-      const characterResponse = await fetch(
-        `${PRISM_API_URL}/api/v1/generate_ai_character`,
-        {
-          method: "POST",
-          headers: {
-            "x-api-key": PRISM_API_KEY,
-          },
-          body: characterFormData,
-        }
-      );
-
-      if (!characterResponse.ok) {
-        const errorText = await characterResponse.text();
-        throw new Error(`Character generation failed: ${errorText}`);
-      }
-
-      const characterData = await characterResponse.json();
-      console.log(
-        `✅ Character generated in ${characterData.generation_time}s`
-      );
-      console.log(`💰 Credits used: ${characterData.credits_used}`);
-
-      // Step 2: Generate AI Video
-      console.log("🎬 Step 2: Generating AI video...");
-      const videoFormData = new FormData();
-      videoFormData.append("character", characterData.output); // Send URL as string
-      videoFormData.append("prompt", ANIMATION_PROMPTS[characterStyle]);
-      videoFormData.append("loop", "True"); // Create a looping video
-
-      const videoResponse = await fetch(
-        `${PRISM_API_URL}/api/v1/generate_ai_video`,
-        {
-          method: "POST",
-          headers: {
-            "x-api-key": PRISM_API_KEY,
-          },
-          body: videoFormData,
-        }
-      );
-
-      if (!videoResponse.ok) {
-        const errorText = await videoResponse.text();
-        throw new Error(`Video generation failed: ${errorText}`);
-      }
-
-      const videoData = await videoResponse.json();
-      console.log(`✅ Video generated in ${videoData.generation_time}s`);
-      console.log(`💰 Credits used: ${videoData.credits_used}`);
-
-      // Calculate totals
-      const totalGenerationTime =
-        characterData.generation_time + videoData.generation_time;
-      const totalCreditsUsed =
-        characterData.credits_used + videoData.credits_used;
-
-      // Format response to match existing interface
-      const responseData: UploadResponse = {
-        success: true,
-        message: "Character and video generated successfully!",
-        data: {
-          characterUrl: characterData.output,
-          videoUrl: videoData.output,
-          characterGenerationTime: characterData.generation_time,
-          videoGenerationTime: videoData.generation_time,
-          totalGenerationTime,
-          creditsUsed: totalCreditsUsed,
-          creditsRemaining: videoData.credits_remaining,
-        },
-        uploadedFile: {
-          name: selectedImage.name,
-          size: selectedImage.size,
-          type: selectedImage.type,
-        },
-      };
-
-      setUploadStatus({
-        type: "success",
-        message: "Character and video generated successfully!",
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
       });
-      setUploadedData(responseData);
-      if (onUploadSuccess) {
-        onUploadSuccess(responseData);
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setUploadStatus({
+          type: "success",
+          message: "Character and video generated successfully!",
+        });
+        setUploadedData(data);
+        if (onUploadSuccess) {
+          onUploadSuccess(data);
+        }
+      } else {
+        throw new Error(data.error || data.details || "Upload failed");
       }
     } catch (error) {
       console.error("Generation error:", error);
