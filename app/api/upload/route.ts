@@ -13,6 +13,9 @@ interface CharacterGenerationResponse {
 
 interface VideoGenerationResponse {
   output: string;
+  extra?: {
+    transparent_video_url?: string;
+  };
   generation_time: number;
   credits_remaining: number;
   credits_used: number;
@@ -164,6 +167,10 @@ export async function POST(request: NextRequest) {
     const videoData: VideoGenerationResponse = await videoResponse.json();
     console.log(`✅ Video generated in ${videoData.generation_time}s`);
     console.log(`💰 Credits used: ${videoData.credits_used}, Remaining: ${videoData.credits_remaining}`);
+    
+    if (videoData.extra?.transparent_video_url) {
+      console.log(`🎬 Transparent video available: ${videoData.extra.transparent_video_url}`);
+    }
 
     // Calculate total metrics
     const totalGenerationTime = characterData.generation_time + videoData.generation_time;
@@ -175,6 +182,7 @@ export async function POST(request: NextRequest) {
       data: {
         characterUrl: characterData.output,
         videoUrl: videoData.output,
+        transparentVideoUrl: videoData.extra?.transparent_video_url,
         characterGenerationTime: characterData.generation_time,
         videoGenerationTime: videoData.generation_time,
         totalGenerationTime,

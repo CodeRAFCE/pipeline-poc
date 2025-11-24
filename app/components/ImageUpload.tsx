@@ -16,6 +16,7 @@ interface UploadResponse {
   data?: {
     characterUrl?: string;
     videoUrl?: string;
+    transparentVideoUrl?: string;
     characterGenerationTime?: number;
     videoGenerationTime?: number;
     totalGenerationTime?: number;
@@ -168,6 +169,41 @@ export default function ImageUpload({ onUploadSuccess }: ImageUploadProps) {
     }
   };
 
+  const handleDownload = async (url: string, filename: string) => {
+    try {
+      toast.loading(`Downloading ${filename}...`);
+
+      // Fetch the video file
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Download failed");
+
+      // Convert to blob
+      const blob = await response.blob();
+
+      // Create a temporary URL for the blob
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      // Create a temporary anchor element and trigger download
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+
+      toast.dismiss();
+      toast.success(`${filename} downloaded successfully!`);
+    } catch (error) {
+      toast.dismiss();
+      toast.error("Download failed. Opening in new tab instead...");
+      // Fallback: open in new tab
+      window.open(url, "_blank");
+    }
+  };
+
   // If upload was successful, show the success UI
   if (uploadedData && uploadStatus.type === "success") {
     return (
@@ -285,16 +321,74 @@ export default function ImageUpload({ onUploadSuccess }: ImageUploadProps) {
             </div>
           )}
 
-          {/* Download Button (if video URL is available) */}
+          {/* Video Download Buttons */}
           {uploadedData.data?.videoUrl && (
-            <a
-              href={uploadedData.data.videoUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-lg transition-colors text-center"
-            >
-              Open Video in New Tab
-            </a>
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 text-center">
+                Generated Videos
+              </h3>
+              <div
+                className={`grid gap-3 ${
+                  uploadedData.data?.transparentVideoUrl
+                    ? "grid-cols-2"
+                    : "grid-cols-1"
+                }`}
+              >
+                {/* Regular Video */}
+                <button
+                  onClick={() =>
+                    handleDownload(
+                      uploadedData.data?.videoUrl!,
+                      "animated-video.mp4"
+                    )
+                  }
+                  className="flex flex-col items-center justify-center bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg transition-colors text-center gap-2"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                    />
+                  </svg>
+                  <span className="text-sm">Download Video (MP4)</span>
+                </button>
+
+                {/* Transparent Video */}
+                {uploadedData.data?.transparentVideoUrl && (
+                  <button
+                    onClick={() =>
+                      handleDownload(
+                        uploadedData.data?.transparentVideoUrl!,
+                        "animated-video-transparent.webm"
+                      )
+                    }
+                    className="flex flex-col items-center justify-center bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 px-4 rounded-lg transition-colors text-center gap-2"
+                  >
+                    <svg
+                      className="w-6 h-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                      />
+                    </svg>
+                    <span className="text-sm">Download Transparent (WebM)</span>
+                  </button>
+                )}
+              </div>
+            </div>
           )}
 
           {/* Action Buttons */}

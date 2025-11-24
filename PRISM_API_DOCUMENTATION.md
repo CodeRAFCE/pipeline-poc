@@ -174,9 +174,12 @@ content-type: multipart/form-data
 
 ```json
 {
-  "output": "https://replicate.delivery/xezq/uGpTXZySM3KRL9yTEVIEQFkEyD4debXeKupSa5Fw4k7UoorVA/tmpn3712h19.mp4",
-  "generation_time": 127.2689413999999,
-  "credits_remaining": 8355,
+  "output": "https://replicate.delivery/xezq/GPKQxFPqIyaoLxhlAa2PHYCj4Wq5zHPvfHjOcj1iKaBp8P2KA/output.mp4",
+  "extra": {
+    "transparent_video_url": "https://v3b.fal.media/files/b/elephant/DwdzpQDwkYRrBApGC-g6w_nccC911a.webm"
+  },
+  "generation_time": 121.55640279990621,
+  "credits_remaining": 6630,
   "credits_used": 70,
   "type": "ai_video"
 }
@@ -184,13 +187,16 @@ content-type: multipart/form-data
 
 **Response Fields:**
 
-| Field               | Type         | Description                                             |
-| ------------------- | ------------ | ------------------------------------------------------- |
-| `output`            | String (URL) | Direct URL to the generated video file (MP4)            |
-| `generation_time`   | Number       | Time taken to generate the video in seconds (~120-130s) |
-| `credits_remaining` | Number       | Remaining credits in your account                       |
-| `credits_used`      | Number       | Credits consumed for this request (~70 credits)         |
-| `type`              | String       | Always `"ai_video"` for this endpoint                   |
+| Field                         | Type         | Description                                                |
+| ----------------------------- | ------------ | ---------------------------------------------------------- |
+| `output`                      | String (URL) | Direct URL to the generated video file (MP4)               |
+| `extra.transparent_video_url` | String (URL) | Optional URL to transparent background video (WebM format) |
+| `generation_time`             | Number       | Time taken to generate the video in seconds (~120-130s)    |
+| `credits_remaining`           | Number       | Remaining credits in your account                          |
+| `credits_used`                | Number       | Credits consumed for this request (~70 credits)            |
+| `type`                        | String       | Always `"ai_video"` for this endpoint                      |
+
+**Note:** The `extra.transparent_video_url` field provides a WebM video with a transparent background, useful for overlays and compositing. This field may not always be present in the response.
 
 #### cURL Example
 
@@ -255,6 +261,10 @@ async function generateCharacterAndVideo(personImageFile) {
   console.log(`⏱️  Time: ${videoData.generation_time}s`);
   console.log(`💰 Credits used: ${videoData.credits_used}`);
 
+  if (videoData.extra?.transparent_video_url) {
+    console.log("🎬 Transparent video:", videoData.extra.transparent_video_url);
+  }
+
   // Return combined results
   return {
     character: {
@@ -264,6 +274,7 @@ async function generateCharacterAndVideo(personImageFile) {
     },
     video: {
       url: videoData.output,
+      transparentUrl: videoData.extra?.transparent_video_url,
       generationTime: videoData.generation_time,
       creditsUsed: videoData.credits_used,
     },

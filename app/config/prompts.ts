@@ -5,8 +5,8 @@ export type CharacterStyle = "normal" | "chibi";
  * These are used in the generate_ai_character API call
  */
 export const CHARACTER_DESCRIPTIONS: Record<CharacterStyle, string> = {
-  normal: "2d cartoon avatar with realistic proportions",
-  chibi: "2d chibi avatar with realistic proportions",
+  normal: "2d avatar with realistic proportions",
+  chibi: "2d super deformation avatar with realistic proportions",
 };
 
 /**
