@@ -2,6 +2,7 @@
 
 import { useState, useRef, ChangeEvent, FormEvent } from "react";
 import Image from "next/image";
+import toast from "react-hot-toast";
 import {
   CHARACTER_DESCRIPTIONS,
   ANIMATION_PROMPTS,
@@ -56,7 +57,9 @@ export default function ImageUpload({ onUploadSuccess }: ImageUploadProps) {
         };
         reader.readAsDataURL(file);
         setUploadStatus({ type: "", message: "" });
+        toast.success("Image selected successfully!");
       } else {
+        toast.error("Please select a valid image file (PNG, JPG, GIF)");
         setUploadStatus({
           type: "error",
           message: "Please select a valid image file",
@@ -76,6 +79,9 @@ export default function ImageUpload({ onUploadSuccess }: ImageUploadProps) {
       };
       reader.readAsDataURL(file);
       setUploadStatus({ type: "", message: "" });
+      toast.success("Image dropped successfully!");
+    } else {
+      toast.error("Please drop a valid image file");
     }
   };
 
@@ -87,6 +93,7 @@ export default function ImageUpload({ onUploadSuccess }: ImageUploadProps) {
     e.preventDefault();
 
     if (!selectedImage) {
+      toast.error("Please select an image first");
       setUploadStatus({
         type: "error",
         message: "Please select an image first",
@@ -96,6 +103,9 @@ export default function ImageUpload({ onUploadSuccess }: ImageUploadProps) {
 
     setIsUploading(true);
     setUploadStatus({ type: "", message: "" });
+
+    // Show loading toast
+    const loadingToast = toast.loading("Generating your animated character...");
 
     try {
       const formData = new FormData();
@@ -114,6 +124,9 @@ export default function ImageUpload({ onUploadSuccess }: ImageUploadProps) {
       const data = await response.json();
 
       if (response.ok) {
+        toast.success("Character and video generated successfully! 🎉", {
+          id: loadingToast,
+        });
         setUploadStatus({
           type: "success",
           message: "Character and video generated successfully!",
@@ -127,12 +140,18 @@ export default function ImageUpload({ onUploadSuccess }: ImageUploadProps) {
       }
     } catch (error) {
       console.error("Generation error:", error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Generation failed. Please try again.";
+
+      toast.error(errorMessage, {
+        id: loadingToast,
+      });
+
       setUploadStatus({
         type: "error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Generation failed. Please try again.",
+        message: errorMessage,
       });
     } finally {
       setIsUploading(false);
@@ -270,10 +289,11 @@ export default function ImageUpload({ onUploadSuccess }: ImageUploadProps) {
           {uploadedData.data?.videoUrl && (
             <a
               href={uploadedData.data.videoUrl}
-              download
+              target="_blank"
+              rel="noopener noreferrer"
               className="block w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-lg transition-colors text-center"
             >
-              Download Video
+              Open Video in New Tab
             </a>
           )}
 

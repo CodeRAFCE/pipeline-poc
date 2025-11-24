@@ -72,13 +72,34 @@ export async function POST(request: NextRequest) {
     });
 
     if (!characterResponse.ok) {
-      const errorText = await characterResponse.text();
-      console.error("Character generation failed:", errorText);
+      let errorMessage = "Character generation failed";
+      let errorDetails = "";
+      
+      try {
+        const errorData = await characterResponse.json();
+        errorDetails = errorData.message || errorData.error || JSON.stringify(errorData);
+      } catch {
+        errorDetails = await characterResponse.text();
+      }
+      
+      // Provide user-friendly error messages based on status code
+      if (characterResponse.status === 429) {
+        errorMessage = "API rate limit exceeded. Please try again later.";
+      } else if (characterResponse.status === 402) {
+        errorMessage = "Insufficient credits. Please top up your account.";
+      } else if (characterResponse.status === 401 || characterResponse.status === 403) {
+        errorMessage = "API authentication failed. Please check your API key.";
+      } else if (characterResponse.status >= 500) {
+        errorMessage = "PRISM API server error. Please try again later.";
+      }
+      
+      console.error("Character generation failed:", errorDetails);
       return NextResponse.json(
         { 
-          error: "Character generation failed", 
-          details: errorText,
-          step: "character_generation"
+          error: errorMessage, 
+          details: errorDetails,
+          step: "character_generation",
+          statusCode: characterResponse.status
         },
         { status: characterResponse.status }
       );
@@ -106,13 +127,34 @@ export async function POST(request: NextRequest) {
     });
 
     if (!videoResponse.ok) {
-      const errorText = await videoResponse.text();
-      console.error("Video generation failed:", errorText);
+      let errorMessage = "Video generation failed";
+      let errorDetails = "";
+      
+      try {
+        const errorData = await videoResponse.json();
+        errorDetails = errorData.message || errorData.error || JSON.stringify(errorData);
+      } catch {
+        errorDetails = await videoResponse.text();
+      }
+      
+      // Provide user-friendly error messages based on status code
+      if (videoResponse.status === 429) {
+        errorMessage = "API rate limit exceeded. Please try again later.";
+      } else if (videoResponse.status === 402) {
+        errorMessage = "Insufficient credits. Please top up your account.";
+      } else if (videoResponse.status === 401 || videoResponse.status === 403) {
+        errorMessage = "API authentication failed. Please check your API key.";
+      } else if (videoResponse.status >= 500) {
+        errorMessage = "PRISM API server error. Please try again later.";
+      }
+      
+      console.error("Video generation failed:", errorDetails);
       return NextResponse.json(
         { 
-          error: "Video generation failed", 
-          details: errorText,
+          error: errorMessage, 
+          details: errorDetails,
           step: "video_generation",
+          statusCode: videoResponse.status,
           characterData // Return character data even if video fails
         },
         { status: videoResponse.status }
@@ -147,12 +189,39 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Upload error:", error);
+    
+    // Determine error type and provide appropriate message
+    let errorMessage = "An unexpected error occurred";
+    let statusCode = 500;
+    
+    if (error instanceof Error) {
+      // Network errors
+      if (error.message.includes("fetch") || error.message.includes("network")) {
+        errorMessage = "Network error. Please check your internet connection and try again.";
+        statusCode = 503;
+      }
+      // Timeout errors
+      else if (error.message.includes("timeout")) {
+        errorMessage = "Request timeout. The server took too long to respond. Please try again.";
+        statusCode = 504;
+      }
+      // JSON parsing errors
+      else if (error.message.includes("JSON")) {
+        errorMessage = "Invalid response from server. Please try again.";
+      }
+      // Generic error with message
+      else {
+        errorMessage = error.message;
+      }
+    }
+    
     return NextResponse.json(
       {
-        error: "Internal server error",
+        error: errorMessage,
         message: error instanceof Error ? error.message : "Unknown error",
+        details: error instanceof Error ? error.stack : String(error),
       },
-      { status: 500 }
+      { status: statusCode }
     );
   }
 }
