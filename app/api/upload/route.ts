@@ -3,14 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 const PRISM_API_URL = process.env.NEXT_PUBLIC_PRISM_API_URL || 'https://prismai.ap-southeast-1.elasticbeanstalk.com';
 const PRISM_API_KEY = process.env.PRISM_API_KEY || '';
 
-interface CharacterGenerationResponse {
-  output: string;
-  generation_time: number;
-  credits_remaining: number;
-  credits_used: number;
-  type: 'ai_character';
-}
-
 interface VideoGenerationResponse {
   output: string;
   extra?: {
@@ -26,7 +18,6 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const image = formData.get("image") as File;
-    const characterDescription = formData.get("characterDescription") as string;
     const animationPrompt = formData.get("animationPrompt") as string;
 
     // Validation
@@ -59,12 +50,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("🎨 Step 1: Generating AI character...");
+    // Step 1: Convert uploaded image to URL via character generation
+    // Note: The video API requires a URL, not a file, so we use character generation
+    // as an intermediate step to get a hosted image URL
+    console.log("📤 Step 1: Uploading image to get URL...");
     
-    // Step 1: Generate AI Character
     const characterFormData = new FormData();
     characterFormData.append('image', image);
-    characterFormData.append('character_description', characterDescription || '2d cartoon avatar with realistic proportions');
+    characterFormData.append('character_description', 'keep original 2d cartoon style exactly as is');
 
     const characterResponse = await fetch(`${PRISM_API_URL}/api/v1/generate_ai_character`, {
       method: 'POST',
@@ -75,7 +68,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!characterResponse.ok) {
-      let errorMessage = "Character generation failed";
+      let errorMessage = "Image upload failed";
       let errorDetails = "";
       
       try {
@@ -85,7 +78,6 @@ export async function POST(request: NextRequest) {
         errorDetails = await characterResponse.text();
       }
       
-      // Provide user-friendly error messages based on status code
       if (characterResponse.status === 429) {
         errorMessage = "API rate limit exceeded. Please try again later.";
       } else if (characterResponse.status === 402) {
@@ -96,71 +88,135 @@ export async function POST(request: NextRequest) {
         errorMessage = "PRISM API server error. Please try again later.";
       }
       
-      console.error("Character generation failed:", errorDetails);
+      console.error("Image upload failed:", errorDetails);
       return NextResponse.json(
         { 
           error: errorMessage, 
           details: errorDetails,
-          step: "character_generation",
+          step: "image_upload",
           statusCode: characterResponse.status
         },
         { status: characterResponse.status }
       );
     }
 
-    const characterData: CharacterGenerationResponse = await characterResponse.json();
-    console.log(`✅ Character generated in ${characterData.generation_time}s`);
+    const characterData = await characterResponse.json();
+    const imageUrl = characterData.output;
+    console.log(`✅ Image uploaded successfully`);
     console.log(`💰 Credits used: ${characterData.credits_used}, Remaining: ${characterData.credits_remaining}`);
 
-    // Step 2: Generate AI Video from Character
-    console.log("🎬 Step 2: Generating AI video...");
+    // Step 2: Generate video from the image URL
+    console.log("🎬 Step 2: Generating animated video...");
     
-    // Use the character URL directly (no need to fetch and convert to blob)
-    const videoFormData = new FormData();
-    videoFormData.append('character', characterData.output); // Send URL as string
-    videoFormData.append('prompt', animationPrompt || 'The person waves at the camera');
-    videoFormData.append('loop', 'True'); // Create a looping video
+    const maxRetries = 3;
+    let videoResponse: Response | null = null;
+    let lastError: { message: string; details: string; status: number } | null = null;
 
-    const videoResponse = await fetch(`${PRISM_API_URL}/api/v1/generate_ai_video`, {
-      method: 'POST',
-      headers: {
-        'x-api-key': PRISM_API_KEY,
-      },
-      body: videoFormData,
-    });
-
-    if (!videoResponse.ok) {
-      let errorMessage = "Video generation failed";
-      let errorDetails = "";
-      
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        const errorData = await videoResponse.json();
-        errorDetails = errorData.message || errorData.error || JSON.stringify(errorData);
-      } catch {
-        errorDetails = await videoResponse.text();
+        if (attempt > 1) {
+          const delay = Math.pow(2, attempt - 1) * 1000; // Exponential backoff: 2s, 4s, 8s
+          console.log(`⏳ Retry attempt ${attempt}/${maxRetries} after ${delay/1000}s delay...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+
+        // Use the image URL from character generation
+        const videoFormData = new FormData();
+        videoFormData.append('character', imageUrl); // Send URL as string
+        videoFormData.append('prompt', animationPrompt || 'The person waves at the camera');
+        videoFormData.append('loop', 'True');
+
+        console.log(`📋 Video generation request (attempt ${attempt}):`, {
+          imageUrl: imageUrl,
+          prompt: animationPrompt || 'The person waves at the camera',
+          loop: 'True'
+        });
+
+        videoResponse = await fetch(`${PRISM_API_URL}/api/v1/generate_ai_video`, {
+          method: 'POST',
+          headers: {
+            'x-api-key': PRISM_API_KEY,
+          },
+          body: videoFormData,
+        });
+
+        // If successful, break out of retry loop
+        if (videoResponse.ok) {
+          console.log(`✅ Video generation succeeded on attempt ${attempt}`);
+          break;
+        }
+
+        // Parse error details
+        let errorDetails = "";
+        try {
+          const errorData = await videoResponse.json();
+          errorDetails = errorData.message || errorData.error || JSON.stringify(errorData);
+        } catch {
+          errorDetails = await videoResponse.text();
+        }
+
+        // Store error for potential final failure
+        lastError = {
+          message: "Video generation failed",
+          details: errorDetails,
+          status: videoResponse.status
+        };
+
+        // Don't retry on client errors (4xx) except 429 (rate limit)
+        if (videoResponse.status >= 400 && videoResponse.status < 500 && videoResponse.status !== 429) {
+          console.error(`❌ Client error ${videoResponse.status}, not retrying:`, errorDetails);
+          break;
+        }
+
+        // Retry on server errors (5xx) and rate limits (429)
+        if (videoResponse.status >= 500 || videoResponse.status === 429) {
+          console.warn(`⚠️ Server error ${videoResponse.status} on attempt ${attempt}:`, errorDetails);
+          if (attempt < maxRetries) {
+            continue; // Retry
+          }
+        }
+
+      } catch (fetchError) {
+        console.error(`❌ Network error on attempt ${attempt}:`, fetchError);
+        lastError = {
+          message: "Network error during video generation",
+          details: fetchError instanceof Error ? fetchError.message : String(fetchError),
+          status: 503
+        };
+        
+        if (attempt < maxRetries) {
+          continue; // Retry on network errors
+        }
       }
+    }
+
+    // Check if all retries failed
+    if (!videoResponse || !videoResponse.ok) {
+      let errorMessage = "Video generation failed after multiple attempts";
+      let errorDetails = lastError?.details || "Unknown error";
+      const statusCode = lastError?.status || 503;
       
       // Provide user-friendly error messages based on status code
-      if (videoResponse.status === 429) {
+      if (statusCode === 429) {
         errorMessage = "API rate limit exceeded. Please try again later.";
-      } else if (videoResponse.status === 402) {
+      } else if (statusCode === 402) {
         errorMessage = "Insufficient credits. Please top up your account.";
-      } else if (videoResponse.status === 401 || videoResponse.status === 403) {
+      } else if (statusCode === 401 || statusCode === 403) {
         errorMessage = "API authentication failed. Please check your API key.";
-      } else if (videoResponse.status >= 500) {
-        errorMessage = "PRISM API server error. Please try again later.";
+      } else if (statusCode >= 500) {
+        errorMessage = "PRISM API server error. The service may be temporarily unavailable.";
       }
       
-      console.error("Video generation failed:", errorDetails);
+      console.error("Video generation failed after all retries:", errorDetails);
       return NextResponse.json(
         { 
           error: errorMessage, 
           details: errorDetails,
           step: "video_generation",
-          statusCode: videoResponse.status,
-          characterData // Return character data even if video fails
+          statusCode: statusCode,
+          retriesAttempted: maxRetries
         },
-        { status: videoResponse.status }
+        { status: statusCode }
       );
     }
 
@@ -172,20 +228,17 @@ export async function POST(request: NextRequest) {
       console.log(`🎬 Transparent video available: ${videoData.extra.transparent_video_url}`);
     }
 
-    // Calculate total metrics
-    const totalGenerationTime = characterData.generation_time + videoData.generation_time;
+    // Calculate total credits used (image upload + video generation)
     const totalCreditsUsed = characterData.credits_used + videoData.credits_used;
+    console.log(`💰 Total credits used: ${totalCreditsUsed}`);
 
     return NextResponse.json({
       success: true,
-      message: "Character and video generated successfully",
+      message: "Video generated successfully",
       data: {
-        characterUrl: characterData.output,
         videoUrl: videoData.output,
         transparentVideoUrl: videoData.extra?.transparent_video_url,
-        characterGenerationTime: characterData.generation_time,
         videoGenerationTime: videoData.generation_time,
-        totalGenerationTime,
         creditsUsed: totalCreditsUsed,
         creditsRemaining: videoData.credits_remaining,
       },

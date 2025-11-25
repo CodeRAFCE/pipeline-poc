@@ -4,7 +4,6 @@ import { useState, useRef, ChangeEvent, FormEvent } from "react";
 import Image from "next/image";
 import toast from "react-hot-toast";
 import {
-  CHARACTER_DESCRIPTIONS,
   ANIMATION_PROMPTS,
   CHARACTER_STYLES,
   CharacterStyle,
@@ -14,12 +13,9 @@ interface UploadResponse {
   success: boolean;
   message: string;
   data?: {
-    characterUrl?: string;
     videoUrl?: string;
     transparentVideoUrl?: string;
-    characterGenerationTime?: number;
     videoGenerationTime?: number;
-    totalGenerationTime?: number;
     creditsUsed?: number;
     creditsRemaining?: number;
   };
@@ -106,15 +102,11 @@ export default function ImageUpload({ onUploadSuccess }: ImageUploadProps) {
     setUploadStatus({ type: "", message: "" });
 
     // Show loading toast
-    const loadingToast = toast.loading("Generating your animated character...");
+    const loadingToast = toast.loading("Generating your animated video...");
 
     try {
       const formData = new FormData();
       formData.append("image", selectedImage);
-      formData.append(
-        "characterDescription",
-        CHARACTER_DESCRIPTIONS[characterStyle]
-      );
       formData.append("animationPrompt", ANIMATION_PROMPTS[characterStyle]);
 
       const response = await fetch("/api/upload", {
@@ -125,12 +117,12 @@ export default function ImageUpload({ onUploadSuccess }: ImageUploadProps) {
       const data = await response.json();
 
       if (response.ok) {
-        toast.success("Character and video generated successfully! 🎉", {
+        toast.success("Video generated successfully! 🎉", {
           id: loadingToast,
         });
         setUploadStatus({
           type: "success",
-          message: "Character and video generated successfully!",
+          message: "Video generated successfully!",
         });
         setUploadedData(data);
         if (onUploadSuccess) {
@@ -234,7 +226,7 @@ export default function ImageUpload({ onUploadSuccess }: ImageUploadProps) {
               Upload Successful!
             </h2>
             <p className="text-gray-600 dark:text-gray-400">
-              Your animated character video is being generated
+              Your animated video has been generated successfully!
             </p>
           </div>
 
@@ -258,22 +250,10 @@ export default function ImageUpload({ onUploadSuccess }: ImageUploadProps) {
                   <span className="font-medium">Size:</span>{" "}
                   {(uploadedData.uploadedFile.size / 1024).toFixed(2)} KB
                 </p>
-                {uploadedData.data?.characterGenerationTime && (
-                  <p>
-                    <span className="font-medium">Character Generation:</span>{" "}
-                    {uploadedData.data.characterGenerationTime.toFixed(2)}s
-                  </p>
-                )}
                 {uploadedData.data?.videoGenerationTime && (
                   <p>
-                    <span className="font-medium">Video Generation:</span>{" "}
+                    <span className="font-medium">Generation Time:</span>{" "}
                     {uploadedData.data.videoGenerationTime.toFixed(2)}s
-                  </p>
-                )}
-                {uploadedData.data?.totalGenerationTime && (
-                  <p>
-                    <span className="font-medium">Total Time:</span>{" "}
-                    {uploadedData.data.totalGenerationTime.toFixed(2)}s
                   </p>
                 )}
                 {uploadedData.data?.creditsUsed !== undefined && (
@@ -293,31 +273,6 @@ export default function ImageUpload({ onUploadSuccess }: ImageUploadProps) {
                   </p>
                 )}
               </div>
-            </div>
-          )}
-
-          {/* Character Preview */}
-          {uploadedData.data?.characterUrl && (
-            <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 space-y-2">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Generated Character
-              </h3>
-              <div className="relative w-full max-w-sm mx-auto aspect-square">
-                <Image
-                  src={uploadedData.data.characterUrl}
-                  alt="Generated Character"
-                  fill
-                  className="object-contain rounded-lg"
-                />
-              </div>
-              <a
-                href={uploadedData.data.characterUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block text-center text-sm text-blue-600 dark:text-blue-400 hover:underline"
-              >
-                View Full Size
-              </a>
             </div>
           )}
 

@@ -1,15 +1,6 @@
 export type CharacterStyle = "normal" | "chibi";
 
 /**
- * Character descriptions for PRISM AI character generation
- * These are used in the generate_ai_character API call
- */
-export const CHARACTER_DESCRIPTIONS: Record<CharacterStyle, string> = {
-  normal: "2d avatar with realistic proportions",
-  chibi: "2d super deformation avatar with realistic proportions",
-};
-
-/**
  * Animation prompts for PRISM AI video generation
  * These are used in the generate_ai_video API call
  */
